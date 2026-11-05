@@ -1,0 +1,30 @@
+{
+  "period": "2026-11",
+  "lastUpdated": "2026-11-02T08:28:57.399Z",
+  "records": {
+    "100201": {
+      "status": "Sent",
+      "phone": "6281234567890",
+      "messageId": "wamid.HBgM7890uv2c7oyvuh0mkookek6i4f",
+      "sentAt": "2026-11-02T08:21:15.624Z"
+    },
+    "100202": {
+      "status": "Sent",
+      "phone": "6281298765432",
+      "messageId": "wamid.HBgM5432fll9wo3i18d1xyavwfrpbgj",
+      "sentAt": "2026-11-02T08:21:17.069Z"
+    },
+    "100203": {
+      "status": "Sent",
+      "phone": "6281311223344",
+      "messageId": "wamid.HBgM3344hgbcmdoi1aengvsxnkz2j",
+      "sentAt": "2026-11-02T08:21:18.565Z"
+    },
+    "100211": {
+      "status": "Sent",
+      "phone": "6288276773437",
+      "messageId": "wamid.HBgM3437qttgeexnwqql8fcgm9a4h",
+      "sentAt": "2026-11-02T08:28:57.399Z"
+    }
+  }
+}

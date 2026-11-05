@@ -1,0 +1,27 @@
+{
+  "company": {
+    "companyName": "RSIA PUTI BUNGSU",
+    "companyAddress": "Gedung Menara Kantor Lt. 5, Jakarta Selatan",
+    "companyPhone": "(021) 12345678",
+    "companyEmail": "finance@perusahaan.co.id",
+    "signerName": "Budi Handoko, S.E.",
+    "signerTitle": "Finance & Payroll Department Manager",
+    "signerCity": "Jakarta"
+  },
+  "whatsapp": {
+    "phoneNumberId": "",
+    "wabaId": "",
+    "accessToken": "",
+    "templateName": "slip_gaji_bulanan",
+    "templateLanguage": "id",
+    "simulationMode": true
+  },
+  "storage": {
+    "excelPath": "C:\\Users\\user\\Videos\\slip-gaji-app\\Payroll\\data\\payroll.xlsx",
+    "slipsPath": "/home/server100/Documents/slip-gaji-app/Payroll/slips",
+    "logsPath": "/home/server100/Documents/slip-gaji-app/Payroll/logs",
+    "backupPath": "/home/server100/Documents/slip-gaji-app/Payroll/backup"
+  },
+  "activePeriod": "2026-11",
+  "activeSheet": "Payroll Nov 2026"
+}

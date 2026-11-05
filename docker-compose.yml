@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  payroll-app:
+    build: .
+    container_name: payroll_payslip_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PAYROLL_STORAGE_PATH=/app/storage
+    volumes:
+      - ./Payroll:/app/storage
+      - ./.env:/app/.env:ro
