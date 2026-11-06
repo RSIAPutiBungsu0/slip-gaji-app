@@ -127,7 +127,7 @@ export default function DashboardPage() {
       const data = await res.json();
 
       if (res.ok) {
-        showNotification('success', 'File master dibuka di aplikasi Windows.');
+        showNotification('success', data.message || 'File master Excel berhasil dibuka.');
       } else {
         showNotification('error', data.error || 'Gagal membuka file master Excel');
       }

@@ -35,25 +35,63 @@ export const EmployeeRawRowSchema = z.object({
   no: z.coerce.number().optional(),
   nik: z.string().min(1, 'NIK wajib diisi'),
   nama: z.string().min(2, 'Nama karyawan minimal 2 karakter'),
-  departemen: z.string().min(1, 'Departemen wajib diisi'),
-  jabatan: z.string().min(1, 'Jabatan wajib diisi'),
-  statusKaryawan: z.string().optional().default('Tetap'),
+  bulan: z.string().optional(),
+  tahun: z.union([z.string(), z.number()]).optional(),
+  unit: z.string().optional(),
+  subUnit: z.string().optional(),
+  jabatan: z.string().optional().default('Pelaksana'),
+  status: z.string().optional().default('Full Time'),
+  nomorRekening: z.string().optional(),
   hariKerja: z.coerce.number().optional().default(22),
-  
-  gajiPokok: z.coerce.number().min(0, 'Gaji pokok harus >= 0'),
+
+  // I. Penghasilan Tetap
+  gajiPokok: z.coerce.number().min(0).optional().default(0),
+
+  // II. Tunjangan
   tunjanganJabatan: z.coerce.number().optional().default(0),
+  tunjanganProfesi: z.coerce.number().optional().default(0),
+  tunjanganKehadiran: z.coerce.number().optional().default(0),
+  tunjanganTetap: z.coerce.number().optional().default(0),
+  tunjanganBpjsKesehatan: z.coerce.number().optional().default(0),
+  tunjanganJht: z.coerce.number().optional().default(0),
+  tunjanganJkk: z.coerce.number().optional().default(0),
+  tunjanganJkm: z.coerce.number().optional().default(0),
+  tunjanganJp: z.coerce.number().optional().default(0),
+  bonus: z.coerce.number().optional().default(0),
   tunjanganTransportMakan: z.coerce.number().optional().default(0),
+
+  // III. Jasa Pelayanan
+  jasaPelayanan: z.coerce.number().optional().default(0),
+
+  // IV. Lembur / Kompensasi
+  lembur: z.coerce.number().optional().default(0),
+  kompensasiShift: z.coerce.number().optional().default(0),
+  jasaRujuk: z.coerce.number().optional().default(0),
+  lainLainPenghasilan: z.coerce.number().optional().default(0),
   lemburInsentif: z.coerce.number().optional().default(0),
-  gajiKotor: z.coerce.number().min(0, 'Gaji kotor harus >= 0'),
-  
-  bpjsKesehatan: z.coerce.number().optional().default(0),
-  bpjsKetenagakerjaan: z.coerce.number().optional().default(0),
+
+  gajiKotor: z.coerce.number().optional().default(0),
+
+  // Potongan
+  iuranBpjsKesehatan: z.coerce.number().optional().default(0),
+  iuranBpjsKetenagakerjaan: z.coerce.number().optional().default(0),
+  pinjaman: z.coerce.number().optional().default(0),
+  punishmentKeterlambatan: z.coerce.number().optional().default(0),
+  kompensasiKetidakhadiran: z.coerce.number().optional().default(0),
   pph21: z.coerce.number().optional().default(0),
-  potonganLain: z.coerce.number().optional().default(0),
-  totalPotongan: z.coerce.number().min(0, 'Total potongan harus >= 0'),
-  
-  gajiBersih: z.coerce.number().min(0, 'Gaji bersih harus >= 0'),
-  nomorWhatsapp: z.union([z.string(), z.number()]).transform(v => String(v))
+  lainLainPotongan: z.coerce.number().optional().default(0),
+  totalPotongan: z.coerce.number().optional().default(0),
+
+  gajiBersih: z.coerce.number().optional().default(0),
+
+  // Absensi
+  cutiTahunan: z.coerce.number().optional().default(0),
+  izin: z.coerce.number().optional().default(0),
+  izinSakit: z.coerce.number().optional().default(0),
+  jumlahMenitTerlambat: z.coerce.number().optional().default(0),
+  tukarShift: z.coerce.number().optional().default(0),
+
+  nomorWhatsapp: z.union([z.string(), z.number()]).transform(v => String(v)).optional()
 });
 
 /**
@@ -71,7 +109,7 @@ export function validatePayrollDataset(rawRows: any[], period: string): {
   let totalWarnings = 0;
 
   // First pass: count NIK occurrences
-  rawRows.forEach((row, idx) => {
+  rawRows.forEach((row) => {
     const nik = String(row.nik || '').trim();
     if (nik) {
       nikSeen.set(nik, (nikSeen.get(nik) || 0) + 1);
@@ -84,9 +122,13 @@ export function validatePayrollDataset(rawRows: any[], period: string): {
 
     const nik = String(raw.nik || '').trim();
     const nama = String(raw.nama || '').trim();
-    const departemen = String(raw.departemen || '').trim() || 'Umum';
-    const jabatan = String(raw.jabatan || '').trim() || 'Staf';
-    const statusKaryawan = String(raw.statusKaryawan || '').trim() || 'Tetap';
+    const unit = String(raw.unit || raw.departemen || '').trim() || 'IT';
+    const subUnit = String(raw.subUnit || '-').trim();
+    const jabatan = String(raw.jabatan || '').trim() || 'Pelaksana';
+    const status = String(raw.status || raw.statusKaryawan || '').trim() || 'Full Time';
+    const bulan = String(raw.bulan || '').trim();
+    const tahun = raw.tahun ? String(raw.tahun).trim() : '';
+    const nomorRekening = String(raw.nomorRekening || '-').trim();
     const hariKerja = Number(raw.hariKerja) || 22;
 
     // Check NIK
@@ -101,55 +143,114 @@ export function validatePayrollDataset(rawRows: any[], period: string): {
       validationErrors.push('Nama karyawan tidak valid (minimal 2 karakter)');
     }
 
-    // Numbers
+    // I. Penghasilan Tetap
     const gajiPokok = Math.max(0, Number(raw.gajiPokok) || 0);
+
+    // II. Tunjangan
     const tunjanganJabatan = Math.max(0, Number(raw.tunjanganJabatan) || 0);
+    const tunjanganProfesi = Math.max(0, Number(raw.tunjanganProfesi) || 0);
+    const tunjanganKehadiran = Math.max(0, Number(raw.tunjanganKehadiran) || 0);
+    const tunjanganTetap = Math.max(0, Number(raw.tunjanganTetap) || 0);
+    const tunjanganBpjsKesehatan = Math.max(0, Number(raw.tunjanganBpjsKesehatan) || 0);
+    const tunjanganJht = Math.max(0, Number(raw.tunjanganJht) || 0);
+    const tunjanganJkk = Math.max(0, Number(raw.tunjanganJkk) || 0);
+    const tunjanganJkm = Math.max(0, Number(raw.tunjanganJkm) || 0);
+    const tunjanganJp = Math.max(0, Number(raw.tunjanganJp) || 0);
+    const bonus = Math.max(0, Number(raw.bonus) || 0);
     const tunjanganTransportMakan = Math.max(0, Number(raw.tunjanganTransportMakan) || 0);
+
+    // III. Jasa Pelayanan
+    const jasaPelayanan = Math.max(0, Number(raw.jasaPelayanan) || 0);
+
+    // IV. Lembur / Kompensasi
+    const lembur = Math.max(0, Number(raw.lembur) || 0);
+    const kompensasiShift = Math.max(0, Number(raw.kompensasiShift) || 0);
+    const jasaRujuk = Math.max(0, Number(raw.jasaRujuk) || 0);
+    const lainLainPenghasilan = Math.max(0, Number(raw.lainLainPenghasilan) || 0);
     const lemburInsentif = Math.max(0, Number(raw.lemburInsentif) || 0);
+
     const gajiKotor = Number(raw.gajiKotor) || 0;
 
-    const bpjsKesehatan = Math.max(0, Number(raw.bpjsKesehatan) || 0);
-    const bpjsKetenagakerjaan = Math.max(0, Number(raw.bpjsKetenagakerjaan) || 0);
+    // Potongan
+    const iuranBpjsKesehatan = Math.max(0, Number(raw.iuranBpjsKesehatan ?? raw.bpjsKesehatan) || 0);
+    const iuranBpjsKetenagakerjaan = Math.max(0, Number(raw.iuranBpjsKetenagakerjaan ?? raw.bpjsKetenagakerjaan) || 0);
+    const pinjaman = Math.max(0, Number(raw.pinjaman) || 0);
+    const punishmentKeterlambatan = Math.max(0, Number(raw.punishmentKeterlambatan) || 0);
+    const kompensasiKetidakhadiran = Math.max(0, Number(raw.kompensasiKetidakhadiran) || 0);
     const pph21 = Math.max(0, Number(raw.pph21) || 0);
-    const potonganLain = Math.max(0, Number(raw.potonganLain) || 0);
+    const lainLainPotongan = Math.max(0, Number(raw.lainLainPotongan ?? raw.potonganLain) || 0);
     const totalPotongan = Number(raw.totalPotongan) || 0;
 
     const gajiBersih = Number(raw.gajiBersih) || 0;
 
+    // Absensi
+    const cutiTahunan = Math.max(0, Number(raw.cutiTahunan) || 0);
+    const izin = Math.max(0, Number(raw.izin) || 0);
+    const izinSakit = Math.max(0, Number(raw.izinSakit) || 0);
+    const jumlahMenitTerlambat = Math.max(0, Number(raw.jumlahMenitTerlambat) || 0);
+    const tukarShift = Math.max(0, Number(raw.tukarShift) || 0);
+
     // Mathematical verification
-    const calculatedGajiKotor = gajiPokok + tunjanganJabatan + tunjanganTransportMakan + lemburInsentif;
-    const calculatedTotalPotongan = bpjsKesehatan + bpjsKetenagakerjaan + pph21 + potonganLain;
+    const calculatedGajiKotor =
+      gajiPokok +
+      tunjanganJabatan +
+      tunjanganProfesi +
+      tunjanganKehadiran +
+      tunjanganTetap +
+      tunjanganBpjsKesehatan +
+      tunjanganJht +
+      tunjanganJkk +
+      tunjanganJkm +
+      tunjanganJp +
+      bonus +
+      tunjanganTransportMakan +
+      jasaPelayanan +
+      lembur +
+      kompensasiShift +
+      jasaRujuk +
+      lainLainPenghasilan +
+      lemburInsentif;
+
+    const calculatedTotalPotongan =
+      iuranBpjsKesehatan +
+      iuranBpjsKetenagakerjaan +
+      pinjaman +
+      punishmentKeterlambatan +
+      kompensasiKetidakhadiran +
+      pph21 +
+      lainLainPotongan;
+
     const calculatedGajiBersih = calculatedGajiKotor - calculatedTotalPotongan;
 
     let hasMathInconsistency = false;
 
-    // Allow 1 IDR tolerance for rounding
-    if (Math.abs(gajiKotor - calculatedGajiKotor) > 1) {
+    // Allow 1 IDR tolerance for rounding if user entered gajiKotor
+    if (gajiKotor > 0 && Math.abs(gajiKotor - calculatedGajiKotor) > 1) {
       hasMathInconsistency = true;
       validationWarnings.push(
-        `Gaji Kotor di Excel (${gajiKotor.toLocaleString('id-ID')}) tidak sesuai dengan penjumlahan komponen (${calculatedGajiKotor.toLocaleString('id-ID')})`
+        `Penghasilan Kotor di Excel (${gajiKotor.toLocaleString('id-ID')}) tidak sesuai dengan penjumlahan komponen (${calculatedGajiKotor.toLocaleString('id-ID')})`
       );
     }
 
-    if (Math.abs(totalPotongan - calculatedTotalPotongan) > 1) {
+    if (totalPotongan > 0 && Math.abs(totalPotongan - calculatedTotalPotongan) > 1) {
       hasMathInconsistency = true;
       validationWarnings.push(
         `Total Potongan di Excel (${totalPotongan.toLocaleString('id-ID')}) tidak sesuai dengan penjumlahan potongan (${calculatedTotalPotongan.toLocaleString('id-ID')})`
       );
     }
 
-    if (Math.abs(gajiBersih - (gajiKotor - totalPotongan)) > 1) {
+    if (gajiBersih > 0 && Math.abs(gajiBersih - calculatedGajiBersih) > 1) {
       hasMathInconsistency = true;
       validationWarnings.push(
-        `Gaji Bersih / THP di Excel (${gajiBersih.toLocaleString('id-ID')}) tidak sinkron dengan (Gaji Kotor - Total Potongan)`
+        `Penerimaan Bersih di Excel (${gajiBersih.toLocaleString('id-ID')}) tidak sinkron dengan (Penghasilan Kotor - Total Potongan)`
       );
     }
 
     // Phone validation
     const rawPhone = raw.nomorWhatsapp || '';
     const { normalized, isValid: isValidPhone } = normalizePhoneNumber(rawPhone);
-    if (!isValidPhone) {
-      validationErrors.push(`Nomor WhatsApp "${rawPhone}" tidak valid (wajib 10-15 digit dengan format 08xx atau 628xx)`);
+    if (rawPhone && !isValidPhone) {
+      validationErrors.push(`Nomor WhatsApp "${rawPhone}" tidak valid (wajib 10-15 digit format 08xx atau 628xx)`);
     }
 
     totalErrors += validationErrors.length;
@@ -161,28 +262,66 @@ export function validatePayrollDataset(rawRows: any[], period: string): {
       no: raw.no || index + 1,
       nik,
       nama,
-      departemen,
+      bulan,
+      tahun,
+      unit,
+      subUnit,
       jabatan,
-      statusKaryawan,
+      status,
+      nomorRekening,
+      departemen: unit,
+      statusKaryawan: status,
       hariKerja,
+
       gajiPokok,
       tunjanganJabatan,
+      tunjanganProfesi,
+      tunjanganKehadiran,
+      tunjanganTetap,
+      tunjanganBpjsKesehatan,
+      tunjanganJht,
+      tunjanganJkk,
+      tunjanganJkm,
+      tunjanganJp,
+      bonus,
       tunjanganTransportMakan,
+
+      jasaPelayanan,
+      lembur,
+      kompensasiShift,
+      jasaRujuk,
+      lainLainPenghasilan,
       lemburInsentif,
-      gajiKotor,
+
+      gajiKotor: gajiKotor || calculatedGajiKotor,
       calculatedGajiKotor,
-      bpjsKesehatan,
-      bpjsKetenagakerjaan,
+
+      iuranBpjsKesehatan,
+      iuranBpjsKetenagakerjaan,
+      pinjaman,
+      punishmentKeterlambatan,
+      kompensasiKetidakhadiran,
       pph21,
-      potonganLain,
-      totalPotongan,
+      lainLainPotongan,
+      bpjsKesehatan: iuranBpjsKesehatan,
+      bpjsKetenagakerjaan: iuranBpjsKetenagakerjaan,
+      potonganLain: lainLainPotongan,
+      totalPotongan: totalPotongan || calculatedTotalPotongan,
       calculatedTotalPotongan,
-      gajiBersih,
+
+      gajiBersih: gajiBersih || calculatedGajiBersih,
       calculatedGajiBersih,
       terbilang: terbilang(calculatedGajiBersih),
+
+      cutiTahunan,
+      izin,
+      izinSakit,
+      jumlahMenitTerlambat,
+      tukarShift,
+
       nomorWhatsappRaw: String(rawPhone),
-      nomorWhatsapp: normalized,
-      isValidPhone,
+      nomorWhatsapp: normalized || String(rawPhone),
+      isValidPhone: isValidPhone || !rawPhone,
       isValid: validationErrors.length === 0,
       validationErrors,
       validationWarnings,

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { getAppSettings } from '@/app/server/storage/settings-store';
 
@@ -7,37 +8,21 @@ function isLocalHost(host: string): boolean {
   return /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(host);
 }
 
-function getFilePaths(filePath: string): { localPath: string; windowsPath: string } | null {
-  if (process.env.OS === 'Windows_NT') {
-    return { localPath: filePath, windowsPath: filePath };
-  }
-
-  if (!process.env.WSL_DISTRO_NAME && !process.env.WSL_INTEROP) return null;
-
-  const windowsPathMatch = /^([a-z]):[\\/](.*)$/i.exec(filePath);
-  if (!windowsPathMatch) return null;
-
-  const drive = windowsPathMatch[1].toLowerCase();
-  const relativePath = windowsPathMatch[2].replace(/\\/g, '/');
-  return {
-    localPath: `/mnt/${drive}/${relativePath}`,
-    windowsPath: filePath
-  };
-}
-
-function openWithWindows(filePath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const opener = spawn('explorer.exe', [filePath], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    });
-
-    opener.once('error', reject);
-    opener.once('spawn', () => {
-      opener.unref();
-      resolve();
-    });
+function tryOpenWithCommand(cmd: string, args: string[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const child = spawn(cmd, args, {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.once('error', () => resolve(false));
+      child.once('spawn', () => {
+        child.unref();
+        resolve(true);
+      });
+    } catch {
+      resolve(false);
+    }
   });
 }
 
@@ -60,30 +45,89 @@ export async function POST(request: Request) {
 
   try {
     const { storage } = await getAppSettings();
-    const filePaths = getFilePaths(storage.excelPath);
-    if (!filePaths) {
+    const resolvedPath = path.isAbsolute(storage.excelPath)
+      ? storage.excelPath
+      : path.resolve(/*turbopackIgnore: true*/ process.cwd(), storage.excelPath);
+
+    if (!fs.existsSync(resolvedPath)) {
       return NextResponse.json(
-        { error: 'Server aplikasi tidak berjalan di Windows atau WSL dengan akses ke Windows Explorer' },
-        { status: 501 }
+        { error: `File master Excel tidak ditemukan pada path: ${resolvedPath}` },
+        { status: 404 }
       );
     }
 
-    if (!fs.existsSync(filePaths.localPath)) {
-      return NextResponse.json({ error: 'File master Excel tidak ditemukan' }, { status: 404 });
+    const platform = process.platform;
+    const isWsl = !!(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
+    const hasDisplay = !!(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+
+    // 1. Linux / WSL
+    if (platform === 'linux') {
+      if (isWsl) {
+        // Try WSL opener
+        const wslOpened = await tryOpenWithCommand('wslview', [resolvedPath]);
+        if (wslOpened) {
+          return NextResponse.json({
+            success: true,
+            message: `File master Excel dibuka via WSL: ${path.basename(resolvedPath)}`
+          });
+        }
+      }
+
+      if (hasDisplay) {
+        // Try xdg-open (standard Linux desktop)
+        let opened = await tryOpenWithCommand('xdg-open', [resolvedPath]);
+        if (!opened) {
+          // Try gio open (GNOME / modern Linux)
+          opened = await tryOpenWithCommand('gio', ['open', resolvedPath]);
+        }
+        if (!opened) {
+          // Try libreoffice directly
+          opened = await tryOpenWithCommand('libreoffice', [resolvedPath]);
+        }
+
+        if (opened) {
+          return NextResponse.json({
+            success: true,
+            message: `File master Excel dibuka di desktop Linux: ${path.basename(resolvedPath)}`
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        headless: true,
+        message: `File master Excel tersimpan di: ${resolvedPath}`
+      });
     }
 
-    await openWithWindows(filePaths.windowsPath);
+    // 2. macOS
+    if (platform === 'darwin') {
+      const opened = await tryOpenWithCommand('open', [resolvedPath]);
+      if (opened) {
+        return NextResponse.json({
+          success: true,
+          message: `File master Excel dibuka: ${path.basename(resolvedPath)}`
+        });
+      }
+    }
 
-    return NextResponse.json({ success: true, message: 'File master dibuka di aplikasi Windows.' });
+    // 3. Windows
+    if (platform === 'win32') {
+      const opened = await tryOpenWithCommand('explorer.exe', [resolvedPath]);
+      if (opened) {
+        return NextResponse.json({
+          success: true,
+          message: `File master Excel dibuka di Windows: ${path.basename(resolvedPath)}`
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `File master Excel tersimpan di: ${resolvedPath}`
+    });
   } catch (err) {
-    const error = err as NodeJS.ErrnoException;
-    if (error.code === 'ENOENT') {
-      return NextResponse.json(
-        { error: 'Windows Explorer tidak ditemukan. Jalankan aplikasi langsung di Windows atau aktifkan WSL interop.' },
-        { status: 501 }
-      );
-    }
-
+    const error = err as Error;
     return NextResponse.json(
       { error: error.message || 'Gagal membuka file master Excel' },
       { status: 500 }

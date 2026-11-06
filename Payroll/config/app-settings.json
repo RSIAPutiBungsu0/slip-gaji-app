@@ -1,12 +1,12 @@
 {
   "company": {
     "companyName": "RSIA PUTI BUNGSU",
-    "companyAddress": "Gedung Menara Kantor Lt. 5, Jakarta Selatan",
-    "companyPhone": "(021) 12345678",
-    "companyEmail": "finance@perusahaan.co.id",
-    "signerName": "Budi Handoko, S.E.",
-    "signerTitle": "Finance & Payroll Department Manager",
-    "signerCity": "Jakarta"
+    "companyAddress": "Jl. Raden Intan, Bandar Jaya Timur, Terbanggi Besar, Lampung Tengah 34163",
+    "companyPhone": "(0725) 529123",
+    "companyEmail": "rsia.putibungsu@gmail.com",
+    "signerName": "dr. Puteri Rahimi Halim MARS",
+    "signerTitle": "Direktur",
+    "signerCity": "Bandarjaya"
   },
   "whatsapp": {
     "phoneNumberId": "",
@@ -17,11 +17,11 @@
     "simulationMode": true
   },
   "storage": {
-    "excelPath": "C:\\Users\\user\\Videos\\slip-gaji-app\\Payroll\\data\\payroll.xlsx",
-    "slipsPath": "/home/server100/Documents/slip-gaji-app/Payroll/slips",
-    "logsPath": "/home/server100/Documents/slip-gaji-app/Payroll/logs",
-    "backupPath": "/home/server100/Documents/slip-gaji-app/Payroll/backup"
+    "excelPath": "./Payroll/data/payroll.xlsx",
+    "slipsPath": "./Payroll/slips",
+    "logsPath": "./Payroll/logs",
+    "backupPath": "./Payroll/backup"
   },
-  "activePeriod": "2026-11",
-  "activeSheet": "Payroll Nov 2026"
+  "activePeriod": "2026-10",
+  "activeSheet": "Payroll Okt 2026"
 }

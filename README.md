@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistem Distribusi Slip Gaji WhatsApp & Payroll (Linux Version)
 
-## Getting Started
+Aplikasi otomasi penggajian (payroll) dan distribusi slip gaji digital via WhatsApp berbasis Next.js 16 (App Router), ExcelJS, jsPDF, dan ImageResponse. Didesain secara khusus untuk berjalan lancar di lingkungan **Linux (Ubuntu, Debian, Fedora, Arch, CentOS, dll.)** serta mendukung operasi **Zero-CLI** bagi staf finance.
 
-First, run the development server:
+---
+
+## 🚀 Cara Menjalankan di Linux
+
+### 1. Menjalankan via Skrip Otomatis (Rekomendasi)
+Skrip ini akan mendeteksi Node.js secara otomatis (termasuk NVM, asdf, fnm, atau instalasi sistem), menyiapkan folder penyimpanan lokal, dan menjalankan server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+chmod +x start-payroll.sh
+./start-payroll.sh
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka browser di: **http://localhost:3000**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Menjalankan Manual dengan npm
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Untuk mode produksi di Linux server:
+```bash
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Menjalankan via Docker & Docker Compose
+```bash
+docker compose up -d --build
+```
+Semua data tersimpan persisten di folder volume `./Payroll`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📂 Struktur Folder Penyimpanan Lokal di Linux
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Aplikasi menggunakan path relatif portabel yang terpusat di folder `./Payroll`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+Payroll/
+├── data/
+│   ├── payroll.xlsx          # Master file Excel data gaji aktif
+│   └── payroll-template.xlsx # Template standar Excel instansi
+├── slips/
+│   └── 2026-11/             # File PDF & PNG slip gaji per periode
+├── logs/
+│   ├── audit.log             # Catatan audit aktivitas sistem
+│   └── history-2026-11.json  # Riwayat status distribusi WhatsApp
+├── backup/                   # Cadangan otomatis setiap file Excel diperbarui
+└── config/
+    └── app-settings.json     # Konfigurasi instansi, WhatsApp, dan path
+```
+
+---
+
+## 🖥️ Zero-CLI Desktop Shortcut (Untuk Staf Finance)
+
+Untuk menjalankan atau membuka aplikasi langsung dari desktop Linux tanpa membuka terminal:
+
+1. Salin `payroll.desktop` ke folder aplikasi atau Desktop:
+   ```bash
+   cp payroll.desktop ~/.local/share/applications/
+   # Atau ke desktop:
+   cp payroll.desktop ~/Desktop/
+   chmod +x ~/Desktop/payroll.desktop
+   ```
+2. Klik 2x shortcut tersebut untuk membuka dashboard di browser bawaan Linux.
+
+---
+
+## ⚙️ Integrasi Sistem & Native Opener Linux
+
+* **Buka File Excel Langsung:** Menggunakan `xdg-open` standar Linux desktop untuk membuka file `.xlsx` dengan aplikasi default (LibreOffice Calc, WPS Spreadsheets, OnlyOffice).
+* **Salin Slip Gaji:** Format gambar PNG di-render langsung dan disalin ke clipboard sistem Linux, siap di-paste (`Ctrl+V`) ke WhatsApp Web.
+* **Auto-Start di Linux Server:** Tersedia template `payroll.service.example` untuk systemd service.

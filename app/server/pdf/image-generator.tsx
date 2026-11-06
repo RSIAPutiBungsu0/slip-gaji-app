@@ -1,11 +1,28 @@
 import { ImageResponse } from 'next/og';
 import React from 'react';
 import path from 'path';
+import fs from 'fs';
 import { EmployeeRecord } from '@/app/types/employee';
 import { CompanySettings } from '@/app/types/config';
 import { formatPeriodLabel } from './generator';
 import { PAYROLL_ROOT_DIR, ensureDir, writeAtomic } from '../storage/file-store';
 import { formatIDR } from '../payroll/calculator';
+
+let cachedLogoBase64: string | null = null;
+function getLogoBase64(): string | null {
+  if (cachedLogoBase64 !== null) return cachedLogoBase64;
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'logo-rsia.png');
+    if (fs.existsSync(logoPath)) {
+      const data = fs.readFileSync(logoPath);
+      cachedLogoBase64 = `data:image/png;base64,${data.toString('base64')}`;
+      return cachedLogoBase64;
+    }
+  } catch (err) {
+    console.error('Failed to load logo-rsia.png:', err);
+  }
+  return null;
+}
 
 export interface GenerateImageOptions {
   employee: EmployeeRecord;
@@ -16,26 +33,24 @@ export interface GenerateImageOptions {
 }
 
 /**
- * Generates an official, high-resolution payslip image in PNG format.
- * Returns the PNG as a Buffer.
+ * Generates an official, high-resolution payslip image in PNG format
+ * matching RSIA PUTI BUNGSU official template.
  */
 export async function generatePayslipImage(options: GenerateImageOptions): Promise<Buffer> {
   const { employee, company, period, saveToDisk = true } = options;
-  const periodLabel = options.periodLabel || formatPeriodLabel(period);
 
-  const earnings = [
-    { label: 'Gaji Pokok', val: employee.gajiPokok },
-    { label: 'Tunjangan Jabatan', val: employee.tunjanganJabatan },
-    { label: 'Tunj. Transport & Makan', val: employee.tunjanganTransportMakan },
-    { label: 'Lembur / Insentif', val: employee.lemburInsentif }
-  ];
+  const bulan = (employee.bulan || (period.split('-')[1] ? [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ][parseInt(period.split('-')[1], 10) - 1] : 'OKTOBER')).toUpperCase();
 
-  const deductions = [
-    { label: 'BPJS Kesehatan (1%)', val: employee.bpjsKesehatan },
-    { label: 'BPJS Ketenagakerjaan (2%)', val: employee.bpjsKetenagakerjaan },
-    { label: 'PPh 21', val: employee.pph21 },
-    { label: 'Potongan Lain', val: employee.potonganLain }
-  ];
+  const tahun = employee.tahun || (period.split('-')[0] || '2026');
+  const dateStr = `${company.signerCity || 'Bandarjaya'}, 1-${bulan.slice(0, 3)}-${String(tahun).slice(-2)}`;
+  const logoBase64 = getLogoBase64();
+
+  const formatVal = (num: number) => {
+    return num > 0 ? formatIDR(num).replace('Rp ', '') : '-';
+  };
 
   const imageResponse = new ImageResponse(
     (
@@ -46,291 +61,436 @@ export async function generatePayslipImage(options: GenerateImageOptions): Promi
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#ffffff',
-          padding: '28px 32px',
+          padding: '24px 32px',
           color: '#0f172a',
           fontFamily: 'sans-serif'
         }}
       >
-        {/* Header */}
+        {/* 1. Header (Kop Surat RSIA PUTI BUNGSU) */}
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#1e293b',
-            borderRadius: '10px 10px 0 0',
-            padding: '18px 22px',
-            borderBottom: '4px solid #10b981'
-          }}
-        >
-          <div style={{ display: 'flex', fontSize: 20, fontWeight: 800, color: '#ffffff', letterSpacing: '0.5px' }}>
-            {company.companyName.toUpperCase()}
-          </div>
-          <div style={{ display: 'flex', fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>
-            {company.companyAddress}
-          </div>
-          <div style={{ display: 'flex', fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-            {`Telp: ${company.companyPhone}  |  Email: ${company.companyEmail}`}
-          </div>
-        </div>
-
-        {/* Title & Period Banner */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            marginTop: 14,
-            marginBottom: 12
+            justifyContent: 'center',
+            position: 'relative',
+            paddingBottom: '14px',
+            borderBottom: '2px solid #0f172a'
           }}
         >
-          <div style={{ display: 'flex', fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '1px' }}>
-            SLIP GAJI KARYAWAN
-          </div>
-          <div style={{ display: 'flex', fontSize: 13, color: '#475569', marginTop: 2, fontWeight: 500 }}>
-            {`Periode: ${periodLabel}`}
-          </div>
-        </div>
-
-        {/* Employee Info Grid */}
-        <div
-          style={{
-            display: 'flex',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: '12px 18px',
-            fontSize: 12,
-            marginBottom: 14
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', width: '50%', gap: 5 }}>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 110, color: '#64748b', fontWeight: 600 }}>NIK</span>
-              <span style={{ display: 'flex', color: '#0f172a', fontWeight: 600 }}>{`: ${employee.nik}`}</span>
-            </div>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 110, color: '#64748b', fontWeight: 600 }}>Nama Karyawan</span>
-              <span style={{ display: 'flex', color: '#0f172a', fontWeight: 700 }}>{`: ${employee.nama}`}</span>
-            </div>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 110, color: '#64748b', fontWeight: 600 }}>Jabatan / Unit</span>
-              <span style={{ display: 'flex', color: '#0f172a' }}>{`: ${employee.jabatan}`}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', width: '50%', gap: 5 }}>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 130, color: '#64748b', fontWeight: 600 }}>Status Kepegawaian</span>
-              <span style={{ display: 'flex', color: '#0f172a' }}>{`: ${employee.statusKaryawan}`}</span>
-            </div>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 130, color: '#64748b', fontWeight: 600 }}>Departemen</span>
-              <span style={{ display: 'flex', color: '#0f172a' }}>{`: ${employee.departemen}`}</span>
-            </div>
-            <div style={{ display: 'flex' }}>
-              <span style={{ display: 'flex', width: 130, color: '#64748b', fontWeight: 600 }}>Hari Kerja</span>
-              <span style={{ display: 'flex', color: '#0f172a' }}>{`: ${employee.hariKerja} Hari`}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Two columns: Earnings & Deductions */}
-        <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
-          {/* Earnings Column */}
+          {/* Logo RSIA */}
           <div
             style={{
+              position: 'absolute',
+              left: '0px',
+              top: '0px',
               display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              border: '1px solid #cbd5e1',
-              borderRadius: 8,
-              overflow: 'hidden'
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '64px',
+              height: '64px'
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                backgroundColor: '#0f172a',
-                color: '#ffffff',
-                padding: '7px 12px',
-                fontSize: 11,
-                fontWeight: 700
-              }}
-            >
-              <span style={{ display: 'flex' }}>RINCIAN PENGHASILAN</span>
-              <span style={{ display: 'flex' }}>NOMINAL</span>
-            </div>
-            {earnings.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
-                  borderBottom: '1px solid #f1f5f9'
-                }}
-              >
-                <span style={{ display: 'flex', color: '#334155' }}>{item.label}</span>
-                <span style={{ display: 'flex', color: '#0f172a', fontWeight: 600 }}>{formatIDR(item.val)}</span>
-              </div>
-            ))}
-            {/* Total Kotor Row */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                fontSize: 11,
-                fontWeight: 700,
-                backgroundColor: '#f1f5f9',
-                borderTop: '1px solid #cbd5e1',
-                color: '#0f172a'
-              }}
-            >
-              <span style={{ display: 'flex' }}>TOTAL GAJI KOTOR</span>
-              <span style={{ display: 'flex' }}>{formatIDR(employee.calculatedGajiKotor)}</span>
-            </div>
+            {logoBase64 ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoBase64}
+                alt="Logo"
+                width={60}
+                height={60}
+                style={{ width: '60px', height: '60px', objectFit: 'contain' }}
+              />
+            ) : null}
           </div>
 
-          {/* Deductions Column */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              border: '1px solid #cbd5e1',
-              borderRadius: 8,
-              overflow: 'hidden'
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                backgroundColor: '#0f172a',
-                color: '#ffffff',
-                padding: '7px 12px',
-                fontSize: 11,
-                fontWeight: 700
-              }}
-            >
-              <span style={{ display: 'flex' }}>RINCIAN PEMOTONGAN</span>
-              <span style={{ display: 'flex' }}>NOMINAL</span>
-            </div>
-            {deductions.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
-                  borderBottom: '1px solid #f1f5f9'
-                }}
-              >
-                <span style={{ display: 'flex', color: '#334155' }}>{item.label}</span>
-                <span style={{ display: 'flex', color: '#0f172a', fontWeight: 600 }}>{formatIDR(item.val)}</span>
-              </div>
-            ))}
-            {/* Total Potongan Row */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                fontSize: 11,
-                fontWeight: 700,
-                backgroundColor: '#fef2f2',
-                borderTop: '1px solid #fecaca',
-                color: '#991b1b'
-              }}
-            >
-              <span style={{ display: 'flex' }}>TOTAL POTONGAN</span>
-              <span style={{ display: 'flex' }}>{formatIDR(employee.calculatedTotalPotongan)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Take Home Pay Card */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#ecfdf5',
-            border: '1.5px solid #10b981',
-            borderRadius: 8,
-            padding: '12px 18px',
-            marginBottom: 16
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
-            <span style={{ display: 'flex', fontSize: 12, fontWeight: 700, color: '#065f46' }}>
-              GAJI BERSIH (TAKE HOME PAY)
-            </span>
-            <span style={{ display: 'flex', fontSize: 20, fontWeight: 800, color: '#047857' }}>
-              {formatIDR(employee.calculatedGajiBersih)}
-            </span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 11,
-              fontStyle: 'italic',
-              color: '#334155',
-              marginTop: 4
-            }}
-          >
-            {`Terbilang: ${employee.terbilang}`}
-          </div>
-        </div>
-
-        {/* Footer & Signer */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            marginTop: 'auto'
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={{ display: 'flex', fontSize: 10, fontStyle: 'italic', color: '#64748b' }}>
-              * Dokumen ini diterbitkan secara otomatis dan sah tanpa tanda tangan basah.
-            </div>
-            <div style={{ display: 'flex', fontSize: 10, color: '#94a3b8' }}>
-              Dicetak otomatis oleh Sistem Payroll
-            </div>
-          </div>
+          {/* Centered Name and Address */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              fontSize: 11,
-              color: '#1e293b'
+              justifyContent: 'center'
             }}
           >
-            <div style={{ display: 'flex' }}>{`${company.signerCity}, ${periodLabel}`}</div>
-            <div style={{ display: 'flex', fontSize: 10, color: '#64748b', marginTop: 2 }}>{company.signerTitle}</div>
-            <div style={{ display: 'flex', marginTop: 36, fontWeight: 700, borderBottom: '1px solid #1e293b', paddingBottom: 2 }}>
-              {`( ${company.signerName} )`}
+            <div style={{ display: 'flex', fontSize: 24, fontWeight: 800, color: '#581c87', letterSpacing: '0.5px' }}>
+              {company.companyName || 'RSIA PUTI BUNGSU'}
             </div>
+            <div style={{ display: 'flex', fontSize: 13, fontWeight: 700, color: '#581c87', marginTop: 3 }}>
+              {company.companyAddress || 'Jl. Raden Intan, Bandar Jaya Timur, Terbanggi Besar,'}
+            </div>
+            <div style={{ display: 'flex', fontSize: 13, fontWeight: 700, color: '#581c87', marginTop: 1 }}>
+              Lampung Tengah 34163
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Title & Metadata */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '10px' }}>
+          <div style={{ display: 'flex', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+            SLIP GAJI
+          </div>
+        </div>
+
+        {/* Metadata info in 2 columns */}
+        <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', marginTop: '6px', fontSize: 12 }}>
+          {/* Left Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
+            <div style={{ display: 'flex' }}>
+              <span style={{ display: 'flex', width: '120px', color: '#0f172a' }}>Bulan</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex', fontWeight: 700 }}>{bulan}</span>
+            </div>
+            <div style={{ display: 'flex', marginTop: '3px' }}>
+              <span style={{ display: 'flex', width: '120px', color: '#0f172a' }}>Tahun</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex', fontWeight: 700 }}>{String(tahun)}</span>
+            </div>
+            <div style={{ display: 'flex', marginTop: '3px' }}>
+              <span style={{ display: 'flex', width: '120px', color: '#0f172a' }}>Unit</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex' }}>{employee.unit || employee.departemen || '-'}</span>
+            </div>
+            <div style={{ display: 'flex', marginTop: '3px' }}>
+              <span style={{ display: 'flex', width: '120px', color: '#0f172a' }}>Sub Unit/Bagian</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex' }}>{employee.subUnit || '-'}</span>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div style={{ display: 'flex', flexDirection: 'column', width: '48%' }}>
+            <div style={{ display: 'flex' }}>
+              <span style={{ display: 'flex', width: '90px', color: '#0f172a' }}>Nama</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex', fontWeight: 700 }}>{employee.nama}</span>
+            </div>
+            <div style={{ display: 'flex', marginTop: '3px' }}>
+              <span style={{ display: 'flex', width: '90px', color: '#0f172a' }}>Jabatan</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex' }}>{employee.jabatan || '-'}</span>
+            </div>
+            <div style={{ display: 'flex', marginTop: '3px' }}>
+              <span style={{ display: 'flex', width: '90px', color: '#0f172a' }}>Status</span>
+              <span style={{ display: 'flex', width: '15px' }}>:</span>
+              <span style={{ display: 'flex' }}>{employee.status || employee.statusKaryawan || 'Full Time'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Divider before main columns */}
+        <div style={{ display: 'flex', width: '100%', height: '1.5px', backgroundColor: '#0f172a', margin: '8px 0' }} />
+
+        {/* 4. Two Columns: PENGHASILAN vs POTONGAN */}
+        <div style={{ display: 'flex', width: '100%', gap: '30px' }}>
+          {/* Left Column: PENGHASILAN */}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, fontSize: 11 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', fontWeight: 800, fontSize: 13, marginBottom: '6px' }}>
+              PENGHASILAN
+            </div>
+
+            {/* I. PENGHASILAN TETAP */}
+            <div style={{ display: 'flex', fontWeight: 700, marginTop: '2px' }}>I. PENGHASILAN TETAP</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Gaji Pokok</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.gajiPokok)}</span>
+              </div>
+            </div>
+
+            {/* II. TUNJANGAN */}
+            <div style={{ display: 'flex', fontWeight: 700, marginTop: '4px' }}>II. TUNJANGAN</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Jabatan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganJabatan)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Profesi</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganProfesi)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Kehadiran</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganKehadiran)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Tetap</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganTetap)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>BPJS Kesehatan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganBpjsKesehatan)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>JHT</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganJht)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>JKK</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganJkk)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>JKM</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganJkm)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>JP</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.tunjanganJp)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Bonus 2022</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.bonus)}</span>
+              </div>
+            </div>
+
+            {/* III. JASA PELAYANAN */}
+            <div style={{ display: 'flex', fontWeight: 700, marginTop: '4px' }}>III. JASA PELAYANAN</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Jasa Pelayanan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.jasaPelayanan)}</span>
+              </div>
+            </div>
+
+            {/* IV. LEMBUR/KOMPENSASI */}
+            <div style={{ display: 'flex', fontWeight: 700, marginTop: '4px' }}>IV. LEMBUR/KOMPENSASI</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Lembur</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.lembur)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Kompensasi Pengganti Shift</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.kompensasiShift)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Jasa Rujuk</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.jasaRujuk)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginTop: '1px' }}>
+              <span>Lain-Lain</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.lainLainPenghasilan)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: POTONGAN & ABSENSI */}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, fontSize: 11 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', fontWeight: 800, fontSize: 13, marginBottom: '6px' }}>
+              POTONGAN
+            </div>
+
+            {/* Lowered by 1 line under POTONGAN */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '18px' }}>
+              <span>Iuran BPJS Kesehatan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.iuranBpjsKesehatan)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>Iuran BPJS Ketenagakerjaan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.iuranBpjsKetenagakerjaan)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>Pinjaman</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.pinjaman)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>Punishment Keterlambatan</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.punishmentKeterlambatan)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>Kompensasi Ketidakhadiran</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.kompensasiKetidakhadiran)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>PPH 21</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.pph21)}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1px' }}>
+              <span>Lain-lain</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span>:</span>
+                <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.lainLainPotongan)}</span>
+              </div>
+            </div>
+
+            {/* Total Potongan Box */}
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '8px', borderTop: '1px solid #0f172a', borderBottom: '1px solid #0f172a', padding: '4px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800 }}>
+                <span>POTONGAN</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.calculatedTotalPotongan)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* --Absensi-- Section with Light Grey BG like Penerimaan Bersih */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginTop: '16px',
+                backgroundColor: '#e2e8f0',
+                borderTop: '1px solid #0f172a',
+                borderBottom: '1px solid #0f172a',
+                padding: '6px 8px'
+              }}
+            >
+              <div style={{ display: 'flex', fontWeight: 700, color: '#0f172a', marginBottom: '3px' }}>
+                --Absensi--
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic', marginTop: '1px' }}>
+                <span>Cuti Tahunan</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{employee.cutiTahunan}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic', marginTop: '1px' }}>
+                <span>Izin</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{employee.izin}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic', marginTop: '1px' }}>
+                <span>Izin Sakit</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{employee.izinSakit}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic', marginTop: '1px' }}>
+                <span>Jumlah Menit Terlambat</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{employee.jumlahMenitTerlambat}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontStyle: 'italic', marginTop: '1px' }}>
+                <span>Tukar Shift</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span>:</span>
+                  <span style={{ width: '85px', textAlign: 'right' }}>{employee.tukarShift}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Bottom Totals Section */}
+        <div style={{ display: 'flex', width: '100%', height: '1.5px', backgroundColor: '#0f172a', margin: '8px 0 4px 0' }} />
+
+        {/* Penghasilan Kotor Row */}
+        <div style={{ display: 'flex', width: '50%', justifyContent: 'space-between', fontSize: 12, fontWeight: 800 }}>
+          <span>PENGHASILAN KOTOR</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <span>:</span>
+            <span style={{ width: '85px', textAlign: 'right' }}>{formatVal(employee.calculatedGajiKotor)}</span>
+          </div>
+        </div>
+
+        {/* 6. PENERIMAAN BERSIH Highlight Bar */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#e2e8f0',
+            borderTop: '1px solid #0f172a',
+            borderBottom: '1px solid #0f172a',
+            padding: '8px 12px',
+            marginTop: '8px',
+            fontSize: 14,
+            fontWeight: 800
+          }}
+        >
+          <span>PENERIMAAN BERSIH</span>
+          <div style={{ display: 'flex', gap: '14px' }}>
+            <span>:</span>
+            <span>{formatIDR(employee.calculatedGajiBersih)}</span>
+          </div>
+        </div>
+
+        {/* 7. Terbilang, Rekening, & Signer Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: 11 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxWidth: '60%' }}>
+            <span style={{ display: 'flex', fontStyle: 'italic', fontWeight: 600 }}>
+              {employee.terbilang.toLowerCase()}
+            </span>
+            <span style={{ display: 'flex', marginTop: '2px' }}>
+              {`Telah ditransfer ke rekening: ${employee.nomorRekening || '-'}`}
+            </span>
+          </div>
+          {/* Signer on Right (Right-aligned, lowered by 2 lines) */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right', marginTop: '18px' }}>
+            <span>{dateStr}</span>
+            <span style={{ marginTop: '38px', fontWeight: 600 }}>
+              {company.signerName || 'dr. Puteri Rahimi Halim MARS'}
+            </span>
           </div>
         </div>
       </div>
     ),
     {
       width: 820,
-      height: 720
+      height: 980
     }
   );
 

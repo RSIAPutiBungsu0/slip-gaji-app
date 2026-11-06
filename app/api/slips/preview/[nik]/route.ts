@@ -23,20 +23,13 @@ export async function GET(
       );
     }
 
-    const pdfPath = getPdfFilePath(period, employee.pdfFilename);
-    let pdfBuffer: Buffer;
-
-    if (fs.existsSync(pdfPath)) {
-      pdfBuffer = await fs.promises.readFile(pdfPath);
-    } else {
-      // Generate on demand and save
-      pdfBuffer = await generatePayslipPdf({
-        employee,
-        company: settings.company,
-        period,
-        saveToDisk: true
-      });
-    }
+    // Always generate fresh PDF preview and update disk cache so changes are immediately visible
+    const pdfBuffer = await generatePayslipPdf({
+      employee,
+      company: settings.company,
+      period,
+      saveToDisk: true
+    });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

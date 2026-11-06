@@ -462,10 +462,10 @@ export default function SettingsPage() {
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>
-                  <strong>Shortcut Desktop:</strong> Buat shortcut pada desktop dengan URL <code>http://localhost:3000</code>. Staf Finance cukup klik 2x icon shortcut tersebut.
+                  <strong>Shortcut Desktop Linux:</strong> Salin file <code>payroll.desktop</code> ke <code>~/Desktop/</code> atau <code>~/.local/share/applications/</code>. Staf Finance cukup klik 2x icon shortcut tersebut tanpa perlu membuka terminal.
                 </li>
                 <li>
-                  <strong>Auto-Start Windows / Server:</strong> Tambahkan perintah <code>npm run dev</code> atau <code>docker compose up -d</code> pada Windows Task Scheduler / systemd agar otomatis aktif saat komputer kantor dinyalakan.
+                  <strong>Auto-Start Linux / Server:</strong> Tambahkan perintah <code>./start-payroll.sh</code> atau <code>docker compose up -d</code> pada systemd service (tersedia template <code>payroll.service.example</code>) atau Task Scheduler agar otomatis aktif saat komputer/server dinyalakan.
                 </li>
                 <li>
                   <strong>Backup Otomatis:</strong> Setiap file Excel dimuat atau diunggah, salinan cadangan tersimpan di <code>Payroll/backup/</code>.

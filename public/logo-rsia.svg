@@ -1,0 +1,25 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'>
+  <defs>
+    <linearGradient id='gradPurple' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#581c87' />
+      <stop offset='100%' stop-color='#7e22ce' />
+    </linearGradient>
+    <linearGradient id='gradLavender' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#c084fc' />
+      <stop offset='100%' stop-color='#e9d5ff' />
+    </linearGradient>
+  </defs>
+  <!-- Stylized Hospital Cross with Mother & Child Curve -->
+  <!-- Left arm -->
+  <path d='M25 60 h35 v40 h-35 a10 10 0 0 1 -10 -10 v-20 a10 10 0 0 1 10 -10 z' fill='url(#gradPurple)' />
+  <!-- Top arm -->
+  <path d='M60 25 v35 h40 v-35 a10 10 0 0 0 -10 -10 h-20 a10 10 0 0 0 -10 10 z' fill='url(#gradPurple)' />
+  <!-- Center & Bottom Heart Shape -->
+  <path d='M60 60 h40 v35 a10 10 0 0 1 -10 10 h-20 a10 10 0 0 1 -10 -10 v-35 z' fill='url(#gradPurple)' />
+  <!-- Right Arm & Embracing Mother-Child Arc -->
+  <path d='M100 60 h35 a10 10 0 0 1 10 10 v20 a10 10 0 0 1 -10 10 h-35 v-40 z' fill='#a855f7' opacity='0.9' />
+  <!-- Loving Heart / Baby silhouette in lavender -->
+  <path d='M80 50 C95 35 125 55 105 85 C95 100 80 115 80 115 C80 115 65 100 55 85 C35 55 65 35 80 50 Z' fill='url(#gradLavender)' opacity='0.85' />
+  <circle cx='80' cy='65' r='10' fill='#581c87' />
+  <path d='M72 80 Q80 95 88 80' stroke='#581c87' stroke-width='4' fill='none' stroke-linecap='round' />
+</svg>

@@ -29,19 +29,13 @@ export async function GET(
     const slipsDir = path.join(PAYROLL_ROOT_DIR, 'slips', period);
     const imagePath = path.join(slipsDir, imageFilename);
 
-    let imageBuffer: Buffer;
-
-    // If already generated on disk, stream directly from disk
-    if (fs.existsSync(imagePath)) {
-      imageBuffer = await fs.promises.readFile(imagePath);
-    } else {
-      imageBuffer = await generatePayslipImage({
-        employee,
-        company: settings.company,
-        period,
-        saveToDisk: true
-      });
-    }
+    // Always generate fresh image slip and update disk cache so changes are immediately visible
+    const imageBuffer = await generatePayslipImage({
+      employee,
+      company: settings.company,
+      period,
+      saveToDisk: true
+    });
 
     return new NextResponse(new Uint8Array(imageBuffer), {
       status: 200,

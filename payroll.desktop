@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Sistem Payroll & Slip Gaji
+Comment=Aplikasi Penggajian dan Distribusi Slip Gaji WhatsApp
+Exec=xdg-open http://localhost:3000
+Icon=x-office-spreadsheet
+Terminal=false
+Categories=Office;Finance;
+StartupNotify=true
+
