@@ -1,20 +1,31 @@
-# Sistem Distribusi Slip Gaji WhatsApp & Payroll (Linux Version)
+# Sistem Distribusi Slip Gaji WhatsApp & Payroll (Universal: Windows & Linux)
 
-Aplikasi otomasi penggajian (payroll) dan distribusi slip gaji digital via WhatsApp berbasis Next.js 16 (App Router), ExcelJS, jsPDF, dan ImageResponse. Didesain secara khusus untuk berjalan lancar di lingkungan **Linux (Ubuntu, Debian, Fedora, Arch, CentOS, dll.)** serta mendukung operasi **Zero-CLI** bagi staf finance.
+Aplikasi otomasi penggajian (payroll) dan distribusi slip gaji digital via WhatsApp berbasis Next.js 16 (App Router), ExcelJS, jsPDF, dan ImageResponse. Didesain secara portabel untuk berjalan lancar di lingkungan **Windows & Linux** dengan path relatif `./Payroll` yang dapat dijalankan dari folder manapun tanpa konfigurasi rumit.
 
 ---
 
-## 🚀 Cara Menjalankan di Linux
+## 🚀 Cara Menjalankan Aplikasi
 
-### 1. Menjalankan via Skrip Otomatis (Rekomendasi)
-Skrip ini akan mendeteksi Node.js secara otomatis (termasuk NVM, asdf, fnm, atau instalasi sistem), menyiapkan folder penyimpanan lokal, dan menjalankan server:
+### Di Windows:
+Cukup klik ganda (double-click) file:
+```cmd
+start-payroll.bat
+```
+Atau jalankan via Terminal (CMD/PowerShell):
+```cmd
+start-payroll.bat
+```
 
+---
+
+### Di Linux:
+Jalankan via terminal atau skrip otomatis:
 ```bash
 chmod +x start-payroll.sh
 ./start-payroll.sh
 ```
 
-Buka browser di: **http://localhost:3000**
+Aplikasi otomatis membuka browser di: **http://localhost:3000**
 
 ---
 

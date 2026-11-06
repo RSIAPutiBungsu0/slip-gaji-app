@@ -113,7 +113,10 @@ export async function POST(request: Request) {
 
     // 3. Windows
     if (platform === 'win32') {
-      const opened = await tryOpenWithCommand('explorer.exe', [resolvedPath]);
+      let opened = await tryOpenWithCommand('cmd.exe', ['/c', 'start', '""', resolvedPath]);
+      if (!opened) {
+        opened = await tryOpenWithCommand('explorer.exe', [resolvedPath]);
+      }
       if (opened) {
         return NextResponse.json({
           success: true,

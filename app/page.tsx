@@ -218,7 +218,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">File Master Aktif:</span>
                 <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                  {excelPath || 'Payroll/data/payroll.xlsx'}
+                  {excelPath || './Payroll/data/payroll.xlsx'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
