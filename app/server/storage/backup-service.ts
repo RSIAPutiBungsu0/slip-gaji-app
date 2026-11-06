@@ -11,7 +11,8 @@ const BACKUP_DIR = path.join(PAYROLL_ROOT_DIR, 'backup');
  */
 export async function createExcelBackup(sourceExcelPath: string): Promise<string | null> {
   try {
-    if (!fs.existsSync(sourceExcelPath)) {
+    const resolvedSource = path.isAbsolute(sourceExcelPath) ? sourceExcelPath : path.resolve(/*turbopackIgnore: true*/ process.cwd(), sourceExcelPath);
+    if (!fs.existsSync(resolvedSource)) {
       return null;
     }
 
@@ -22,11 +23,11 @@ export async function createExcelBackup(sourceExcelPath: string): Promise<string
     const pad = (n: number) => n.toString().padStart(2, '0');
     const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     
-    const baseName = path.basename(sourceExcelPath, path.extname(sourceExcelPath));
+    const baseName = path.basename(resolvedSource, path.extname(resolvedSource));
     const backupFileName = `${baseName}_${timestamp}.xlsx`;
     const targetBackupPath = path.join(BACKUP_DIR, backupFileName);
 
-    await fs.promises.copyFile(sourceExcelPath, targetBackupPath);
+    await fs.promises.copyFile(resolvedSource, targetBackupPath);
     await logAudit('AUTO_BACKUP', `Snapshot cadangan dibuat: ${backupFileName}`, 'SUCCESS');
 
     // Maintain only last 20 backups to prevent infinite disk accumulation

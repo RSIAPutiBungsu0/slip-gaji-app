@@ -25,19 +25,18 @@ const DEFAULT_SETTINGS: AppSettings = {
     simulationMode: true // Enabled by default for easy demo/testing without Meta API keys
   },
   storage: {
-    excelPath: path.join(PAYROLL_ROOT_DIR, 'data', 'payroll.xlsx'),
-    slipsPath: path.join(PAYROLL_ROOT_DIR, 'slips'),
-    logsPath: path.join(PAYROLL_ROOT_DIR, 'logs'),
-    backupPath: path.join(PAYROLL_ROOT_DIR, 'backup')
+    excelPath: './Payroll/data/payroll.xlsx',
+    slipsPath: './Payroll/slips',
+    logsPath: './Payroll/logs',
+    backupPath: './Payroll/backup'
   },
   activePeriod: '2026-10',
   activeSheet: 'Payroll Okt 2026'
 };
 
 /**
- * Normalizes storage paths to ensure they work seamlessly on Linux/POSIX,
- * resolving relative paths and converting legacy Windows drive paths (e.g. C:\...)
- * to valid Linux paths under PAYROLL_ROOT_DIR.
+ * Normalizes storage paths to clean relative POSIX paths (e.g. ./Payroll/data/payroll.xlsx),
+ * converting legacy Windows drive paths (e.g. C:\...) or absolute paths to relative ./Payroll/...
  */
 export function normalizeStoragePath(rawPath: string | undefined, defaultPath: string): string {
   if (!rawPath || typeof rawPath !== 'string' || !rawPath.trim()) {
@@ -47,33 +46,41 @@ export function normalizeStoragePath(rawPath: string | undefined, defaultPath: s
   // Normalize all backslashes to forward slashes
   let p = rawPath.replace(/\\/g, '/').trim();
 
-  // If running on non-Windows OS (Linux, macOS, Docker) and path has a Windows drive prefix (e.g. C:/...)
-  if (process.platform !== 'win32' && /^[a-zA-Z]:/.test(p)) {
+  // If path has Windows drive prefix (e.g. C:/...)
+  if (/^[a-zA-Z]:/.test(p)) {
     const match = p.match(/(?:^|\/)Payroll\/(.*)$/i);
     if (match) {
-      return path.join(PAYROLL_ROOT_DIR, match[1]);
+      return `./Payroll/${match[1]}`;
     }
     return defaultPath;
   }
 
-  // If path is relative (e.g. ./Payroll/data/payroll.xlsx or Payroll/data/...)
+  // If already relative, ensure standard ./ prefix
   if (!path.isAbsolute(p)) {
-    return path.resolve(/*turbopackIgnore: true*/ process.cwd(), p);
+    return p.startsWith('./') ? p : `./${p}`;
   }
 
-  // If it's an absolute path that doesn't exist on this machine
-  // (e.g. cloned from another machine or user's directory like /home/other/...)
-  if (!fs.existsSync(p)) {
-    const match = p.match(/(?:^|\/)Payroll\/(.*)$/i);
-    if (match) {
-      const candidate = path.join(PAYROLL_ROOT_DIR, match[1]);
-      if (fs.existsSync(candidate) || fs.existsSync(path.dirname(candidate))) {
-        return candidate;
-      }
-    }
+  // If it's an absolute path matching current cwd or containing /Payroll/
+  const cwd = process.cwd().replace(/\\/g, '/');
+  if (p.startsWith(cwd)) {
+    const rel = path.relative(cwd, p).replace(/\\/g, '/');
+    return rel.startsWith('.') ? rel : `./${rel}`;
+  }
+
+  const match = p.match(/(?:^|\/)Payroll\/(.*)$/i);
+  if (match) {
+    return `./Payroll/${match[1]}`;
   }
 
   return p;
+}
+
+/**
+ * Resolves relative storage paths (e.g. ./Payroll/...) to absolute paths for filesystem calls
+ */
+export function resolveStoragePath(p: string): string {
+  if (path.isAbsolute(p)) return p;
+  return path.resolve(/*turbopackIgnore: true*/ process.cwd(), p);
 }
 
 export async function getAppSettings(): Promise<AppSettings> {

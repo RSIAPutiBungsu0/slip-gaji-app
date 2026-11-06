@@ -34,10 +34,11 @@ export function sanitizePath(targetPath: string): string {
  * This guarantees zero corruption if power or execution is interrupted.
  */
 export async function writeAtomic(targetFilePath: string, content: string | Buffer): Promise<void> {
-  const dir = path.dirname(targetFilePath);
+  const resolvedPath = path.isAbsolute(targetFilePath) ? targetFilePath : path.resolve(/*turbopackIgnore: true*/ process.cwd(), targetFilePath);
+  const dir = path.dirname(resolvedPath);
   ensureDir(dir);
   
-  const tempPath = `${targetFilePath}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  const tempPath = `${resolvedPath}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   
   try {
     if (typeof content === 'string') {
@@ -45,7 +46,7 @@ export async function writeAtomic(targetFilePath: string, content: string | Buff
     } else {
       await fs.promises.writeFile(tempPath, content);
     }
-    await fs.promises.rename(tempPath, targetFilePath);
+    await fs.promises.rename(tempPath, resolvedPath);
   } catch (err) {
     if (fs.existsSync(tempPath)) {
       try {

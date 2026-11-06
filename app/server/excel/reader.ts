@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import fs from 'fs';
+import path from 'path';
 import { matchHeaderToKey } from './mapper';
 import { createExcelBackup } from '../storage/backup-service';
 import { logAudit } from '../logger/audit';
@@ -22,7 +23,8 @@ export async function readPayrollExcel(
   preferredSheetName?: string,
   performBackup: boolean = true
 ): Promise<ExcelReadResult> {
-  if (!fs.existsSync(filePath)) {
+  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(/*turbopackIgnore: true*/ process.cwd(), filePath);
+  if (!fs.existsSync(resolvedPath)) {
     return {
       filePath,
       sheets: [],
@@ -36,11 +38,11 @@ export async function readPayrollExcel(
 
   if (performBackup) {
     // Snapshot backup in background
-    createExcelBackup(filePath).catch(console.error);
+    createExcelBackup(resolvedPath).catch(console.error);
   }
 
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await workbook.xlsx.readFile(resolvedPath);
 
   const sheets = workbook.worksheets.map(w => w.name);
   if (sheets.length === 0) {
